@@ -3,12 +3,13 @@
 -- changeset pavel11sg:1.1-create_items_table
 CREATE TABLE items
 (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name        VARCHAR(255) UNIQUE            NOT NULL,
-    price       DECIMAL(10, 2)                 NOT NULL CHECK (price >= 0),
-    description TEXT,
-    created_at  TIMESTAMP        DEFAULT NOW() NOT NULL,
-    updated_at  TIMESTAMP        DEFAULT NOW() NOT NULL
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name           VARCHAR(255) UNIQUE            NOT NULL,
+    price          DECIMAL(10, 2)                 NOT NULL CHECK (price >= 0),
+    description    TEXT,
+    stock_quantity INTEGER          DEFAULT 0     NOT NULL CHECK (stock_quantity >= 0),
+    created_at     TIMESTAMP        DEFAULT NOW() NOT NULL,
+    updated_at     TIMESTAMP        DEFAULT NOW() NOT NULL
 );
 -- rollback DROP TABLE items;
 

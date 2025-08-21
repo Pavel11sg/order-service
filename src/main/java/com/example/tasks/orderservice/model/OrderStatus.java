@@ -1,0 +1,5 @@
+package com.example.tasks.orderservice.model;
+
+public enum OrderStatus {
+	CREATED, CONFIRMED, PAYMENT_PENDING, PAYMENT_RECEIVED, IN_PROGRESS, DELIVERY, COMPLETED, PAYMENT_FAILED, CANCELLED, EXPIRED
+}
