@@ -6,7 +6,6 @@ import com.example.tasks.orderservice.repository.ItemRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -16,6 +15,7 @@ public class ItemService {
 	public ItemService(ItemRepository itemRepository) {
 		this.itemRepository = itemRepository;
 	}
+
 	@Transactional(readOnly = true)
 	public Item getItemById(UUID itemId) {
 		return itemRepository.findById(itemId)
@@ -25,6 +25,7 @@ public class ItemService {
 	public boolean isItemAvailable(UUID itemId, Integer requestedQuantity) {
 		return itemRepository.existsAvailableItem(itemId, requestedQuantity);
 	}
+
 	@Transactional
 	public void decreaseStockQuantity(UUID itemId, Integer quantity) {
 		int updatedRows = itemRepository.decreaseStockQuantity(itemId, quantity);
@@ -33,10 +34,4 @@ public class ItemService {
 					itemId, quantity));
 		}
 	}
-//	@Transactional
-//	public void decreaseStockQuantities(Map<UUID, Integer> itemQuantities) {
-//		for (Map.Entry<UUID, Integer> entry : itemQuantities.entrySet()) {
-//			decreaseStockQuantity(entry.getKey(), entry.getValue());
-//		}
-//	}
 }
