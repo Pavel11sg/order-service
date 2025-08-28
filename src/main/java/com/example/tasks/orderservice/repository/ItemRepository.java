@@ -12,7 +12,7 @@ public interface ItemRepository extends JpaRepository<Item, UUID> {
 	@Query("SELECT COUNT(i) > 0 FROM Item i WHERE i.itemId = :itemId AND i.stockQuantity >= :quantity")
 	boolean existsAvailableItem(@Param("itemId") UUID itemId, @Param("quantity") Integer quantity);
 
-	@Modifying
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query("UPDATE Item i SET i.stockQuantity = i.stockQuantity - :quantity WHERE i.itemId = :itemId AND i.stockQuantity >= :quantity")
 	int decreaseStockQuantity(@Param("itemId") UUID itemId, @Param("quantity") Integer quantity);
 }
