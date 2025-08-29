@@ -87,12 +87,12 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v1
         with:
           args:
-            - -Dsonar.projectKey=your-project-key
-            - -Dsonar.projectName=order-service
-            - -Dsonar.java.binaries=target/classes
-            - -Dsonar.sources=src/main/java
-            - -Dsonar.tests=src/test/java
-            - -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+            -Dsonar.projectKey=your-project-key
+            -Dsonar.projectName=order-service
+            -Dsonar.java.binaries=target/classes
+            -Dsonar.sources=src/main/java
+            -Dsonar.tests=src/test/java
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
         if: ${{ github.event_name == 'pull_request' }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
