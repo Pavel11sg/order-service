@@ -24,7 +24,7 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
           permissions:
-            contents: read
+          contents: read
       - name: Build with Maven
         run: mvn clean compile -DskipTests
 
@@ -102,7 +102,7 @@ jobs:
         uses: SonarSource/sonarqube-quality-gate-action@v1
         if: ${{ github.event_name == 'pull_request' }}
         env:
-            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: Run Checkstyle
         run: mvn checkstyle:check
