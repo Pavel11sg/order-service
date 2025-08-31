@@ -113,7 +113,7 @@ jobs:
             -Dsonar.projectKey=Pavel11sg_order-service \
             -Dsonar.projectName=order-service \
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
         if: ${{ github.event_name == 'pull_request' }}
         env:
