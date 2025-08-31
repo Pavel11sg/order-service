@@ -3,6 +3,8 @@ name: CI Pipeline for order-service
 on:
   pull_request:
     branches: [ master, order-service ]
+  push:
+      branches: [ master, order-service ]
   workflow_dispatch:
 
 env:
