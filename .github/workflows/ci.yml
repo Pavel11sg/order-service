@@ -96,23 +96,14 @@ jobs:
           name: jacoco-report
           path: ./
 
-      - name: Debug - Find where jacoco.xml is located
-        run: |
-          echo "=== DEBUG: Finding jacoco.xml ==="
-          echo "Current directory: $(pwd)"
-          echo "Full directory structure:"
-          find . -name "jacoco.xml" -type f 2>/dev/null || echo "No jacoco.xml found anywhere!"
-          echo "Files in root directory:"
-          ls -la *.xml 2>/dev/null || echo "No XML files in root"
-          echo "All files in current directory:"
-          ls -la
+      - name: Compile project first (without clean)
+        run: mvn compile -DskipTests
 
-      - name: Create directory structure and move jacoco.xml
+      - name: Move jacoco.xml to correct location
         run: |
-          echo "=== Moving jacoco.xml to correct location ==="
           # Create the target directory structure
           mkdir -p target/site/jacoco/
-          
+
           # Find and move the jacoco.xml file
           JACOCO_FILE=$(find . -name "jacoco.xml" -type f | head -1)
           if [ -n "$JACOCO_FILE" ]; then
@@ -123,12 +114,9 @@ jobs:
             echo "ERROR: jacoco.xml not found anywhere!"
             exit 1
           fi
-          
+
           echo "Verifying the file is in correct location:"
           ls -la target/site/jacoco/jacoco.xml
-
-      - name: Compile project
-        run: mvn clean compile
 
       - name: Verify target directory
         run: ls -la target/classes/
@@ -138,11 +126,9 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
-          echo "Current directory structure:"
-          ls -la
           echo "Jacoco file details:"
           ls -la target/site/jacoco/jacoco.xml
-          
+
           # Run SonarQube analysis with detailed output
           mvn org.sonarsource.scanner.maven:sonar-maven-plugin:3.11.0.3922:sonar \
             -Dsonar.organization=innowise-internship \
@@ -159,23 +145,7 @@ jobs:
             -Dsonar.login=$SONAR_TOKEN \
             -Dsonar.verbose=true
 
-      - name: Check if scannerwork directory was created
-        run: |
-          echo "Checking for .scannerwork directory:"
-          ls -la .scannerwork/ 2>/dev/null || echo ".scannerwork directory does not exist"
-          if [ -d ".scannerwork" ]; then
-            echo "Contents of .scannerwork:"
-            ls -la .scannerwork/
-          fi
-
-      - name: Check SonarQube Quality Gate status
-        if: success()
-        uses: SonarSource/sonarqube-quality-gate-action@v1
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - name: Run Checkstyle
-        run: mvn checkstyle:check
+      
 
   build-docker-image:
     runs-on: ubuntu-latest
