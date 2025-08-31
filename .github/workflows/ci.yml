@@ -103,6 +103,9 @@ jobs:
           name: jacoco-report
           path: target/site/jacoco/
 
+      - name: Compile code for SonarQube analysis
+        run: mvn compile -DskipTests
+
       - name: Run SonarQube analysis with Maven
         run: |
           mvn sonar:sonar \
