@@ -73,6 +73,12 @@ jobs:
           name: jacoco-report
           path: target/site/jacoco/jacoco.xml
 
+      - name: Debug - List target directory contents
+        run: |
+          echo "Listing target directory:"
+          find target/ -name "*.xml" | head -10
+          echo "Listing site/jacoco directory:"
+          ls -la target/site/jacoco/ || echo "site/jacoco directory does not exist yet"
 
   code-analysis:
     runs-on: ubuntu-latest
