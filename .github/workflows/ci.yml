@@ -144,8 +144,6 @@ jobs:
             -Dsonar.host.url=$SONAR_HOST_URL \
             -Dsonar.login=$SONAR_TOKEN \
             -Dsonar.verbose=true
-  
-  
 
   build-docker-image:
     runs-on: ubuntu-latest
