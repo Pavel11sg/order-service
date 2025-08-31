@@ -96,15 +96,35 @@ jobs:
           name: jacoco-report
           path: ./
 
-      - name: Find and move jacoco report to correct location
+      - name: Debug - Find where jacoco.xml is located
         run: |
-          echo "Looking for jacoco.xml file:"
-          find . -name "jacoco.xml" -type f
-          echo "Creating target/site/jacoco directory structure..."
+          echo "=== DEBUG: Finding jacoco.xml ==="
+          echo "Current directory: $(pwd)"
+          echo "Full directory structure:"
+          find . -name "jacoco.xml" -type f 2>/dev/null || echo "No jacoco.xml found anywhere!"
+          echo "Files in root directory:"
+          ls -la *.xml 2>/dev/null || echo "No XML files in root"
+          echo "All files in current directory:"
+          ls -la
+
+      - name: Create directory structure and move jacoco.xml
+        run: |
+          echo "=== Moving jacoco.xml to correct location ==="
+          # Create the target directory structure
           mkdir -p target/site/jacoco/
-          echo "Moving jacoco.xml to target/site/jacoco/"
-          find . -name "jacoco.xml" -exec mv {} target/site/jacoco/ \;
-          echo "Verifying jacoco.xml is in correct location:"
+          
+          # Find and move the jacoco.xml file
+          JACOCO_FILE=$(find . -name "jacoco.xml" -type f | head -1)
+          if [ -n "$JACOCO_FILE" ]; then
+            echo "Found jacoco.xml at: $JACOCO_FILE"
+            mv "$JACOCO_FILE" target/site/jacoco/jacoco.xml
+            echo "Moved to target/site/jacoco/jacoco.xml"
+          else
+            echo "ERROR: jacoco.xml not found anywhere!"
+            exit 1
+          fi
+          
+          echo "Verifying the file is in correct location:"
           ls -la target/site/jacoco/jacoco.xml
 
       - name: Compile project
