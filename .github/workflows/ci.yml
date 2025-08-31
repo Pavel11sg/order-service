@@ -85,6 +85,7 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v2
         with:
           args:
+            -Dsonar.organization=innowise-internship
             -Dsonar.projectKey=Pavel11sg_order-service
             -Dsonar.projectName=order-service
             -Dsonar.java.binaries=target/classes
