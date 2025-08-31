@@ -97,7 +97,7 @@ jobs:
           path: target/site/jacoco/
 
       - name: Verify jacoco report exists
-        run: ls -la target/site/jacoco/jacoco.xml || echo "Jacoco report not found"
+        run: ls -la target/site/jacoco/jacoco.xml
 
       - name: Compile project
         run: mvn clean compile
@@ -108,8 +108,16 @@ jobs:
       - name: SonarQube Scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
-          mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+          # Debug: Show what's in the current directory
+          echo "Current directory structure:"
+          ls -la
+          echo "Jacoco file details:"
+          ls -la target/site/jacoco/jacoco.xml
+          
+          # Run SonarQube analysis with detailed output
+          mvn org.sonarsource.scanner.maven:sonar-maven-plugin:3.11.0.3922:sonar \
             -Dsonar.organization=innowise-internship \
             -Dsonar.projectKey=Pavel11sg_order-service \
             -Dsonar.projectName=order-service \
@@ -120,10 +128,21 @@ jobs:
             -Dsonar.tests=src/test/java \
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
             -Dsonar.junit.reportPaths=target/surefire-reports \
-            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
-            -Dsonar.analysis.ci=true
+            -Dsonar.host.url=$SONAR_HOST_URL \
+            -Dsonar.login=$SONAR_TOKEN \
+            -Dsonar.verbose=true
+
+      - name: Check if scannerwork directory was created
+        run: |
+          echo "Checking for .scannerwork directory:"
+          ls -la .scannerwork/ 2>/dev/null || echo ".scannerwork directory does not exist"
+          if [ -d ".scannerwork" ]; then
+            echo "Contents of .scannerwork:"
+            ls -la .scannerwork/
+          fi
 
       - name: Check SonarQube Quality Gate status
+        if: success()
         uses: SonarSource/sonarqube-quality-gate-action@v1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
