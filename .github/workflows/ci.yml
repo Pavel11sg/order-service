@@ -103,15 +103,35 @@ jobs:
           path: target/site/jacoco/
 
       - name: Verify coverage report exists
-        run: ls -la target/site/jacoco/ || echo "Coverage report not found"
+        run: |
+          echo "Checking jacoco.xml location:"
+          find . -name "jacoco.xml" -type f
+          echo "Contents of target/site/jacoco/:"
+          ls -la target/site/jacoco/ || echo "target/site/jacoco/ does not exist"
+          echo "Current directory structure:"
+          ls -la
+
+      - name: Recreate jacoco directory structure if needed
+        run: |
+          # Ensure the jacoco directory exists with the correct structure
+          mkdir -p target/site/jacoco/
+          # Move the downloaded jacoco.xml to the correct location if it's elsewhere
+          if [ -f "jacoco.xml" ]; then
+            mv jacoco.xml target/site/jacoco/jacoco.xml
+          fi
+          # Verify the file is in the correct location
+          ls -la target/site/jacoco/
 
       - name: Compile code for SonarQube analysis
         run: mvn compile -DskipTests
 
       - name: Run SonarQube analysis with Maven
         id: sonar-analysis
+        if: github.event_name == 'pull_request'
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          # First verify the jacoco file exists in the expected location
+          if [ -f "target/site/jacoco/jacoco.xml" ]; then
+            echo "JaCoCo report found at target/site/jacoco/jacoco.xml"
             mvn sonar:sonar \
               -Dsonar.organization=innowise-internship \
               -Dsonar.projectKey=Pavel11sg_order-service \
@@ -120,15 +140,34 @@ jobs:
               -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
               -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
           else
-            echo "Skipping SonarQube analysis for non-PR event: ${{ github.event_name }}"
+            echo "ERROR: JaCoCo report not found at target/site/jacoco/jacoco.xml"
+            echo "Available files:"
+            find . -name "*.xml"
+            exit 1
           fi
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
+      - name: Verify SonarQube report files
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Checking for SonarQube report files:"
+          ls -la .scannerwork/ || echo ".scannerwork directory does not exist"
+          if [ -f ".scannerwork/report-task.txt" ]; then
+            echo "report-task.txt content:"
+            cat .scannerwork/report-task.txt
+          else
+            echo "report-task.txt not found in .scannerwork/"
+            echo "Available files in .scannerwork/:"
+            ls -la .scannerwork/ 2>/dev/null || echo "No .scannerwork directory"
+          fi
+
       - name: Check SonarQube Quality Gate status
+        if: github.event_name == 'pull_request'
         uses: SonarSource/sonarqube-quality-gate-action@v1
-        if: ${{ github.event_name == 'pull_request' && success() }}
+        with:
+          scanMetadataReportFile: .scannerwork/report-task.txt
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
