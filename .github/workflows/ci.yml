@@ -58,7 +58,9 @@ jobs:
           cache: 'maven'
 
       - name: Run tests with coverage
-        run: mvn test jacoco:report
+        run: |
+          mvn test
+          mvn jacoco:report
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/${{ env.POSTGRES_DB }}
           SPRING_DATASOURCE_USERNAME: ${{ secrets.POSTGRES_USER }}
