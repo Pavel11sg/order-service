@@ -1,7 +1,9 @@
-name: CI Pipeline for order-service
+name: CI/CD Pipeline for order-service
 
 on:
   pull_request:
+    branches: [ master, order-service ]
+  push:
     branches: [ master, order-service ]
   workflow_dispatch:
 
@@ -23,6 +25,7 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: 'maven'
+
       - name: Build with Maven
         run: mvn clean compile -DskipTests
 
@@ -57,9 +60,7 @@ jobs:
           cache: 'maven'
 
       - name: Run tests with coverage
-        run: |
-          mvn test
-          mvn jacoco:report
+        run: mvn test jacoco:report
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/${{ env.POSTGRES_DB }}
           SPRING_DATASOURCE_USERNAME: ${{ secrets.POSTGRES_USER }}
@@ -94,42 +95,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: jacoco-report
-          path: ./
+          path: target/site/jacoco/
 
-      - name: Compile project first (without clean)
+      - name: Compile project
         run: mvn compile -DskipTests
-
-      - name: Move jacoco.xml to correct location
-        run: |
-          # Create the target directory structure
-          mkdir -p target/site/jacoco/
-
-          # Find and move the jacoco.xml file
-          JACOCO_FILE=$(find . -name "jacoco.xml" -type f | head -1)
-          if [ -n "$JACOCO_FILE" ]; then
-            echo "Found jacoco.xml at: $JACOCO_FILE"
-            mv "$JACOCO_FILE" target/site/jacoco/jacoco.xml
-            echo "Moved to target/site/jacoco/jacoco.xml"
-          else
-            echo "ERROR: jacoco.xml not found anywhere!"
-            exit 1
-          fi
-
-          echo "Verifying the file is in correct location:"
-          ls -la target/site/jacoco/jacoco.xml
-
-      - name: Verify target directory
-        run: ls -la target/classes/
 
       - name: SonarQube Scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
-          echo "Jacoco file details:"
-          ls -la target/site/jacoco/jacoco.xml
-
-          # Run SonarQube analysis with detailed output
           mvn org.sonarsource.scanner.maven:sonar-maven-plugin:3.11.0.3922:sonar \
             -Dsonar.organization=innowise-internship \
             -Dsonar.projectKey=Pavel11sg_order-service \
@@ -142,14 +117,19 @@ jobs:
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
             -Dsonar.junit.reportPaths=target/surefire-reports \
             -Dsonar.host.url=$SONAR_HOST_URL \
-            -Dsonar.login=$SONAR_TOKEN \
-            -Dsonar.verbose=true
+            -Dsonar.login=$SONAR_TOKEN
 
-      
+      - name: Check SonarQube Quality Gate status
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Run Checkstyle
+        run: mvn checkstyle:check
 
   build-docker-image:
     runs-on: ubuntu-latest
-    needs: [test, sonarqube]
+    needs: test
     if: github.event_name != 'pull_request'
 
     steps:
