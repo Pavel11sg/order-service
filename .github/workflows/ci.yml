@@ -103,27 +103,33 @@ jobs:
           name: jacoco-report
           path: target/site/jacoco/
 
+      - name: Verify coverage report exists
+        run: ls -la target/site/jacoco/ || echo "Coverage report not found"
+
       - name: Compile code for SonarQube analysis
         run: mvn compile -DskipTests
 
       - name: Run SonarQube analysis with Maven
         id: sonar-analysis
         run: |
-          mvn sonar:sonar \
-            -Dsonar.organization=innowise-internship \
-            -Dsonar.projectKey=Pavel11sg_order-service \
-            -Dsonar.projectName=order-service \
-            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
-            -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-        if: ${{ github.event_name == 'pull_request' }}
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            mvn sonar:sonar \
+              -Dsonar.organization=innowise-internship \
+              -Dsonar.projectKey=Pavel11sg_order-service \
+              -Dsonar.projectName=order-service \
+              -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
+              -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+              -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+          else
+            echo "Skipping SonarQube analysis for non-PR event: ${{ github.event_name }}"
+          fi
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: Check SonarQube Quality Gate status
         uses: SonarSource/sonarqube-quality-gate-action@v1
-        if: ${{ github.event_name == 'pull_request' && steps.sonar-analysis.outcome == 'success' }}
+        if: ${{ github.event_name == 'pull_request' && success() }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
