@@ -94,10 +94,18 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: jacoco-report
-          path: target/site/jacoco/
+          path: ./
 
-      - name: Verify jacoco report exists
-        run: ls -la target/site/jacoco/jacoco.xml
+      - name: Find and move jacoco report to correct location
+        run: |
+          echo "Looking for jacoco.xml file:"
+          find . -name "jacoco.xml" -type f
+          echo "Creating target/site/jacoco directory structure..."
+          mkdir -p target/site/jacoco/
+          echo "Moving jacoco.xml to target/site/jacoco/"
+          find . -name "jacoco.xml" -exec mv {} target/site/jacoco/ \;
+          echo "Verifying jacoco.xml is in correct location:"
+          ls -la target/site/jacoco/jacoco.xml
 
       - name: Compile project
         run: mvn clean compile
@@ -110,7 +118,6 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
-          # Debug: Show what's in the current directory
           echo "Current directory structure:"
           ls -la
           echo "Jacoco file details:"
