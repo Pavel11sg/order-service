@@ -100,29 +100,7 @@ jobs:
 
       - name: Compile project first (without clean)
         run: mvn compile -DskipTests
-
-      - name: Move jacoco.xml to correct location
-        run: |
-          # Create the target directory structure
-          mkdir -p target/site/jacoco/
-
-          # Find and move the jacoco.xml file
-          JACOCO_FILE=$(find . -name "jacoco.xml" -type f | head -1)
-          if [ -n "$JACOCO_FILE" ]; then
-            echo "Found jacoco.xml at: $JACOCO_FILE"
-            mv "$JACOCO_FILE" target/site/jacoco/jacoco.xml
-            echo "Moved to target/site/jacoco/jacoco.xml"
-          else
-            echo "ERROR: jacoco.xml not found anywhere!"
-            exit 1
-          fi
-
-          echo "Verifying the file is in correct location:"
-          ls -la target/site/jacoco/jacoco.xml
-
-      - name: Verify target directory
-        run: ls -la target/classes/
-
+        
       - name: SonarQube Scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
