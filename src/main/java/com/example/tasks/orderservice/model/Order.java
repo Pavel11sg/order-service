@@ -41,12 +41,16 @@ public class Order {
 	private OrderStatus orderStatus;
 	@Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
 	private BigDecimal totalAmount;
-	@CreationTimestamp
 	@Column(name = "creation_date", updatable = false, nullable = false)
+//	@CreationTimestamp
 	private LocalDateTime createdAt;
-	@UpdateTimestamp
 	@Column(name = "updated_at", nullable = false)
+	@UpdateTimestamp
 	private LocalDateTime updatedAt;
 	@OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<OrderItem> orderItems;
+	@Column(name = "currency", nullable = false)
+	private String currency;
+	@Column(name = "payment_method_token")
+	private String paymentMethodToken;
 }

@@ -3,6 +3,7 @@ package com.example.tasks.orderservice.service;
 import com.example.tasks.orderservice.dto.mapper.ItemMapper;
 import com.example.tasks.orderservice.dto.mapper.OrderMapper;
 import com.example.tasks.orderservice.dto.request.OrderCreateRequestDto;
+import com.example.tasks.orderservice.dto.request.OrderCreateWithPaymentRequestDto;
 import com.example.tasks.orderservice.dto.request.OrderItemRequestDto;
 import com.example.tasks.orderservice.dto.request.OrderUpdateRequestDto;
 import com.example.tasks.orderservice.dto.response.OrderResponseDto;
@@ -12,6 +13,8 @@ import com.example.tasks.orderservice.exception.InvalidOrderRequestException;
 import com.example.tasks.orderservice.exception.InvalidStatusTransitionException;
 import com.example.tasks.orderservice.exception.OrderNotFoundException;
 import com.example.tasks.orderservice.exception.UserNotFoundException;
+
+
 import com.example.tasks.orderservice.model.Item;
 import com.example.tasks.orderservice.model.Order;
 import com.example.tasks.orderservice.model.OrderItem;
@@ -20,10 +23,17 @@ import com.example.tasks.orderservice.proxy.UserServiceClient;
 import com.example.tasks.orderservice.repository.OrderRepository;
 import feign.FeignException;
 import jakarta.validation.constraints.NotNull;
+import org.example.tasks.dto.OrderCreatedEvent;
+import org.example.tasks.dto.PaymentCreatedEvent;
+import org.example.tasks.model.PaymentStatus;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -42,13 +52,17 @@ public class OrderService {
 	private final ItemMapper itemMapper;
 	private final Map<OrderStatus, Set<OrderStatus>> allowedTransitions = createTransitionsMap();
 	private final UserServiceClient userServiceClient;
+	private final KafkaTemplate<String, Object> kafkaTemplate;
+	@Value("${kafka.topics.order-created}")
+	private String orderCreatedTopic;
 
-	public OrderService(OrderRepository orderRepository, ItemService itemService, OrderMapper orderMapper, ItemMapper itemMapper, UserServiceClient userServiceClient) {
+	public OrderService(OrderRepository orderRepository, ItemService itemService, OrderMapper orderMapper, ItemMapper itemMapper, UserServiceClient userServiceClient, KafkaTemplate<String, Object> kafkaTemplate) {
 		this.orderRepository = orderRepository;
 		this.itemService = itemService;
 		this.orderMapper = orderMapper;
 		this.itemMapper = itemMapper;
 		this.userServiceClient = userServiceClient;
+		this.kafkaTemplate = kafkaTemplate;
 	}
 
 	@Transactional
@@ -75,6 +89,46 @@ public class OrderService {
 		OrderResponseDto orderResponseDto = orderMapper.toDto(savedOrder);
 		return new OrderWithUserResponseDto(userResponseDto, orderResponseDto);
 	}
+
+	@Transactional
+	public OrderWithUserResponseDto createOrderWithPayment(OrderCreateWithPaymentRequestDto orderRequestDto) {
+		if (orderRequestDto.getUserId() == null || orderRequestDto.getItems().isEmpty()) {
+			throw new InvalidOrderRequestException("User ID is required and items list cannot be empty");
+		}
+		List<OrderItemRequestDto> items = orderRequestDto.getItems();
+		UserResponseDto userResponseDto;
+		try {
+			userResponseDto = userServiceClient.getUser(orderRequestDto.getUserId());
+			if (userResponseDto == null) {
+				throw new UserNotFoundException("User not found, id: " + orderRequestDto.getUserId());
+			}
+		} catch (FeignException.NotFound e) {
+			throw new UserNotFoundException("User not found, id: " + orderRequestDto.getUserId());
+		}
+
+		validateItemsAvailability(items);
+
+		updateStockQuantities(items);
+
+		Order order = createOrderEntity(orderRequestDto);
+
+		Order savedOrder = orderRepository.save(order);
+		OrderResponseDto orderResponseDto = orderMapper.toDto(savedOrder);
+		sendOrderCreatedEvent(savedOrder);
+		return new OrderWithUserResponseDto(userResponseDto, orderResponseDto);
+	}
+
+	private void sendOrderCreatedEvent(Order order) {
+		OrderCreatedEvent orderCreatedEvent = new OrderCreatedEvent();
+		orderCreatedEvent.setOrderId(order.getOrderId());
+		orderCreatedEvent.setUserId(order.getUserId());
+		orderCreatedEvent.setCurrency(order.getCurrency());
+		orderCreatedEvent.setTotalAmount(order.getTotalAmount());
+		orderCreatedEvent.setPaymentMethodToken(order.getPaymentMethodToken());
+		orderCreatedEvent.setTimestamp(order.getCreatedAt().toInstant(ZoneOffset.UTC));
+		kafkaTemplate.send(orderCreatedTopic, orderCreatedEvent);
+	}
+
 	@Transactional
 	public OrderWithUserResponseDto updateOrder(UUID orderId, OrderUpdateRequestDto requestDto) {
 		Order order = orderRepository.findById(orderId)
@@ -166,6 +220,40 @@ public class OrderService {
 		Order order = new Order();
 		order.setUserId(orderRequestDto.getUserId());
 		order.setOrderStatus(OrderStatus.CREATED);
+		order.setCurrency("USD");
+
+		List<OrderItem> orderItems = orderRequestDto.getItems().stream()
+				.map(itemDto -> {
+					OrderItem orderItem = new OrderItem();
+
+					Item item = itemService.getItemById(itemDto.getItemId());
+
+					orderItem.setItem(item);
+					orderItem.setQuantity(itemDto.getQuantity());
+					orderItem.setPrice(item.getPrice());
+					orderItem.setOrder(order);
+
+					return orderItem;
+				})
+				.collect(Collectors.toList());
+
+		order.setOrderItems(orderItems);
+
+		BigDecimal totalAmount = orderItems.stream()
+				.map(oi -> oi.getPrice().multiply(BigDecimal.valueOf(oi.getQuantity())))
+				.reduce(BigDecimal.ZERO, BigDecimal::add);
+		order.setTotalAmount(totalAmount);
+
+		return order;
+	}
+
+	private Order createOrderEntity(OrderCreateWithPaymentRequestDto orderRequestDto) {
+		Order order = new Order();
+		order.setUserId(orderRequestDto.getUserId());
+		order.setOrderStatus(OrderStatus.CREATED);
+		order.setCurrency(orderRequestDto.getCurrency());
+		order.setPaymentMethodToken(orderRequestDto.getPaymentMethodToken());
+		order.setCreatedAt(LocalDateTime.now());
 
 		List<OrderItem> orderItems = orderRequestDto.getItems().stream()
 				.map(itemDto -> {
@@ -217,5 +305,20 @@ public class OrderService {
 		transitions.put(OrderStatus.EXPIRED, Set.of());
 		transitions.put(OrderStatus.COMPLETED, Set.of());
 		return transitions;
+	}
+
+	@Transactional
+	public void processPaymentCreatedEvent(PaymentCreatedEvent paymentCreatedEvent) {
+		UUID orderId = paymentCreatedEvent.getOrderId();
+		Order order = orderRepository.findById(orderId)
+				.orElseThrow(() -> new OrderNotFoundException(String.format("Order id=%s that came from payment-service not found", orderId)));
+
+		PaymentStatus paymentStatus = paymentCreatedEvent.getStatus();
+		switch (paymentStatus) {
+			case PENDING -> order.setOrderStatus(OrderStatus.PAYMENT_PENDING);
+			case SUCCESS -> order.setOrderStatus(OrderStatus.PAYMENT_RECEIVED);
+			case FAILED -> order.setOrderStatus(OrderStatus.CANCELLED);
+		}
+		orderRepository.save(order);
 	}
 }

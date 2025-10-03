@@ -5,4 +5,5 @@
                    https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <include file="changes/2025-08-21_create_tables.sql" relativeToChangelogFile="true"/>
+    <include file="changes/2025-09-25_add_payment_fields.sql" relativeToChangelogFile="true"/>
 </databaseChangeLog>

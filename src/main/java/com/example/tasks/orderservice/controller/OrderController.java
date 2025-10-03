@@ -1,6 +1,7 @@
 package com.example.tasks.orderservice.controller;
 
 import com.example.tasks.orderservice.dto.request.OrderCreateRequestDto;
+import com.example.tasks.orderservice.dto.request.OrderCreateWithPaymentRequestDto;
 import com.example.tasks.orderservice.dto.request.OrderUpdateRequestDto;
 import com.example.tasks.orderservice.dto.response.OrderWithUserResponseDto;
 import com.example.tasks.orderservice.model.OrderStatus;
@@ -31,8 +32,8 @@ public class OrderController {
 	}
 
 	@PostMapping
-	public ResponseEntity<OrderWithUserResponseDto> createOrder(@Valid @RequestBody OrderCreateRequestDto requestDto) {
-		return new ResponseEntity<>(orderService.createOrder(requestDto), HttpStatus.CREATED);
+	public ResponseEntity<OrderWithUserResponseDto> createOrder(@Valid @RequestBody OrderCreateWithPaymentRequestDto requestDto) {
+		return new ResponseEntity<>(orderService.createOrderWithPayment(requestDto), HttpStatus.CREATED);
 	}
 
 	@PutMapping("/{orderId}")
